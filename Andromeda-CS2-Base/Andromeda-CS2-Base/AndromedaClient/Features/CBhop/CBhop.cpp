@@ -2,6 +2,7 @@
 
 #include <CS2/SDK/SDK.hpp>
 #include <CS2/SDK/Interface/IEngineToClient.hpp>
+#include <CS2/SDK/Types/CEntityData.hpp>
 #include <CS2/SDK/Update/CCSGOInput.hpp>
 #include <CS2/SDK/Update/CUserCmd.hpp>
 

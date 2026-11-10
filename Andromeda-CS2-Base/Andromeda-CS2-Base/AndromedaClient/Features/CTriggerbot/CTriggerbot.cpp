@@ -34,7 +34,7 @@ auto CTriggerbot::IsEnemyUnderCrosshair() -> bool
 	const auto vAngles = pLocalPawn->m_angEyeAngles();
 
 	Vector3 vForward{};
-	Math::AngleVectors( vAngles , &vForward );
+	Math::AngleVectors( vAngles , vForward );
 
 	const auto vEnd = vEye + vForward * 8192.0f;
 	auto* pHit = GetCL_Trace()->TraceToEntityEndPos( &vEnd );

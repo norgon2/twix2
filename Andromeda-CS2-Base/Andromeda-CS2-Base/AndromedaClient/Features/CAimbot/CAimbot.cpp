@@ -68,7 +68,7 @@ auto CAimbot::GetBestLegitTarget() -> C_CSPlayerPawn*
 	const auto vLocalEye    = GetCL_Players()->GetLocalEyeOrigin();
 	const auto vLocalAngles = pLocalPawn->m_angEyeAngles();
 
-	C_CSPlayerPawn* pBest   = nullptr;
+	C_CSPlayerPawn* pBest    = nullptr;
 	float           flBestFov = Settings::Aimbot::FOV;
 
 	const auto iHighest = SDK::Interfaces::GameEntitySystem()->GetHighestEntityIndex();
@@ -86,7 +86,9 @@ auto CAimbot::GetBestLegitTarget() -> C_CSPlayerPawn*
 		if ( vBone.IsZero() )
 			continue;
 
-		const auto flFov = vLocalAngles.Distance( Math::CalcAngle( vLocalEye , vBone ) );
+		const auto vAimAngle = Math::CalcAngle( vLocalEye , vBone );
+		const auto flFov = vLocalAngles.Distance( vAimAngle );
+
 		if ( flFov < flBestFov )
 		{
 			flBestFov = flFov;
@@ -126,7 +128,6 @@ auto CAimbot::RunLegit( CCSGOInput* pInput , CUserCmd* pUserCmd ) -> void
 
 	Math::ClampAngles( vAimAngle );
 
-	// smooth — plus Smoothing est bas, plus c'est snap
 	const auto vCurrentAngles = pLocalPawn->m_angEyeAngles();
 	QAngle vOut{};
 	Math::SmoothAngles( vCurrentAngles , vAimAngle , vOut , Settings::Aimbot::Smoothing );
@@ -137,8 +138,7 @@ auto CAimbot::RunLegit( CCSGOInput* pInput , CUserCmd* pUserCmd ) -> void
 
 // ─────────────────────────── RAGE ───────────────────────────
 
-// Essaie les bones dans Settings::Aimbot::RageBones, retourne le premier non-zero
-auto CAimbot::GetBestRageBone( C_CSPlayerPawn* pPawn , const Vector3& vLocalEye ) -> Vector3
+auto CAimbot::GetBestRageBone( C_CSPlayerPawn* pPawn ) -> Vector3
 {
 	for ( int i = 0; Settings::Aimbot::RageBones[ i ] != nullptr; i++ )
 	{
@@ -159,7 +159,7 @@ auto CAimbot::GetBestRageTarget() -> C_CSPlayerPawn*
 	const auto vLocalAngles = pLocalPawn->m_angEyeAngles();
 
 	C_CSPlayerPawn* pBest    = nullptr;
-	float           flBestFov = 360.f; // rage = pas de limite FOV
+	float           flBestFov = 360.f;
 
 	const auto iHighest = SDK::Interfaces::GameEntitySystem()->GetHighestEntityIndex();
 	for ( auto i = 1; i <= iHighest; i++ )
@@ -172,11 +172,13 @@ auto CAimbot::GetBestRageTarget() -> C_CSPlayerPawn*
 		if ( !IsValidTarget( pCtrl , pPawn , Settings::Aimbot::RageOnlyVisible ) )
 			continue;
 
-		const auto vBone = GetBestRageBone( pPawn , vLocalEye );
+		const auto vBone = GetBestRageBone( pPawn );
 		if ( vBone.IsZero() )
 			continue;
 
-		const auto flFov = vLocalAngles.Distance( Math::CalcAngle( vLocalEye , vBone ) );
+		const auto vAimAngle = Math::CalcAngle( vLocalEye , vBone );
+		const auto flFov = vLocalAngles.Distance( vAimAngle );
+
 		if ( flFov < flBestFov )
 		{
 			flBestFov = flFov;
@@ -205,7 +207,7 @@ auto CAimbot::RunRage( CCSGOInput* pInput , CUserCmd* pUserCmd ) -> void
 		return;
 
 	const auto vLocalEye = GetCL_Players()->GetLocalEyeOrigin();
-	const auto vBone     = GetBestRageBone( pTarget , vLocalEye );
+	const auto vBone     = GetBestRageBone( pTarget );
 	if ( vBone.IsZero() )
 		return;
 
@@ -216,12 +218,10 @@ auto CAimbot::RunRage( CCSGOInput* pInput , CUserCmd* pUserCmd ) -> void
 
 	Math::ClampAngles( vAimAngle );
 
-	// snap instantané, pas de smooth
 	GetCL_Bypass()->SetViewAngles( &vAimAngle , pInput , pUserCmd );
 
-	// autofire : tire dès que l'angle est écrit
 	if ( Settings::Aimbot::RageAutoFire )
-		GetCL_Bypass()->SetAttack( pUserCmd , true ); // SubTick = true pour rage
+		GetCL_Bypass()->SetAttack( pUserCmd , true );
 }
 
 // ─────────────────────────── entry ───────────────────────────
@@ -231,7 +231,6 @@ auto CAimbot::OnCreateMove( CCSGOInput* pInput , CUserCmd* pUserCmd ) -> void
 	if ( !SDK::Interfaces::EngineToClient()->IsInGame() )
 		return;
 
-	// rage a priorité sur legit si les deux sont actifs
 	if ( Settings::Aimbot::RageActive )
 		RunRage( pInput , pUserCmd );
 	else
