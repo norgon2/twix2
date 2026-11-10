@@ -28,13 +28,23 @@ namespace Settings
 	}
 	namespace Aimbot
 	{
-		inline auto Active     = false;
-		inline auto OnlyVisible= true;
-		inline auto FOV        = 5.f;
-		inline auto Smoothing  = 10.f;
-		inline auto RCS        = true;
-		inline auto Key        = VK_LBUTTON; // 0 = always on, VK_LBUTTON = hold LMB
+		// --- Legit ---
+		inline auto Active      = false;
+		inline auto OnlyVisible = true;
+		inline auto FOV         = 5.f;      // degrees, legit mode
+		inline auto Smoothing   = 8.f;      // lower = snappier (1 = instant, 20 = slow)
+		inline auto RCS         = true;
+		inline auto Key         = VK_LBUTTON; // 0 = always on
 		inline const char* BoneTarget = "head_0";
+
+		// --- Ragebot ---
+		inline auto RageActive      = false;
+		inline auto RageKey         = VK_LBUTTON; // hold to rage
+		inline auto RageAutoFire    = true;        // fire automatically on lock
+		inline auto RageOnlyVisible = false;       // through smokes etc.
+		inline auto RageRCS         = true;
+		// bones essayés dans l'ordre jusqu'au premier non-zero
+		inline const char* RageBones[] = { "head_0", "spine_1", "pelvis", nullptr };
 	}
 	namespace Triggerbot
 	{

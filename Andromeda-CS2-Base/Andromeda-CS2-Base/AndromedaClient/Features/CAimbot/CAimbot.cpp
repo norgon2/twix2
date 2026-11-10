@@ -17,7 +17,9 @@
 
 static CAimbot g_Aimbot{};
 
-auto CAimbot::IsValidTarget( CCSPlayerController* pController , C_CSPlayerPawn* pPawn ) -> bool
+// ─────────────────────────── shared ───────────────────────────
+
+auto CAimbot::IsValidTarget( CCSPlayerController* pController , C_CSPlayerPawn* pPawn , bool bRequireVisible ) -> bool
 {
 	if ( !pController || !pPawn )
 		return false;
@@ -35,99 +37,205 @@ auto CAimbot::IsValidTarget( CCSPlayerController* pController , C_CSPlayerPawn* 
 	if ( pPawn->m_iTeamNum() == pLocalPawn->m_iTeamNum() )
 		return false;
 
-	if ( Settings::Aimbot::OnlyVisible && !GetCL_VisibleCheck()->IsPlayerControllerVisible( pController ) )
+	if ( bRequireVisible && !GetCL_VisibleCheck()->IsPlayerControllerVisible( pController ) )
 		return false;
 
 	return true;
 }
 
-auto CAimbot::GetBestTarget() -> C_CSPlayerPawn*
+auto CAimbot::ApplyRCS( QAngle& vAngle , C_CSPlayerPawn* pLocalPawn ) -> void
+{
+	if ( pLocalPawn->m_iShotsFired() <= 1 )
+		return;
+
+	const auto& aimPunchCache = pLocalPawn->m_aimPunchCache();
+	if ( aimPunchCache.Count() <= 0 )
+		return;
+
+	const auto& punch = aimPunchCache[ aimPunchCache.Count() - 1 ];
+	vAngle.m_x -= punch.m_x * 2.0f;
+	vAngle.m_y -= punch.m_y * 2.0f;
+}
+
+// ─────────────────────────── LEGIT ───────────────────────────
+
+auto CAimbot::GetBestLegitTarget() -> C_CSPlayerPawn*
 {
 	auto* pLocalPawn = GetCL_Players()->GetLocalPlayerPawn();
 	if ( !pLocalPawn )
 		return nullptr;
 
-	const auto vLocalEye = GetCL_Players()->GetLocalEyeOrigin();
+	const auto vLocalEye    = GetCL_Players()->GetLocalEyeOrigin();
 	const auto vLocalAngles = pLocalPawn->m_angEyeAngles();
 
-	C_CSPlayerPawn* pBestTarget = nullptr;
-	float flBestFov = Settings::Aimbot::FOV;
+	C_CSPlayerPawn* pBest   = nullptr;
+	float           flBestFov = Settings::Aimbot::FOV;
 
 	const auto iHighest = SDK::Interfaces::GameEntitySystem()->GetHighestEntityIndex();
 	for ( auto i = 1; i <= iHighest; i++ )
 	{
-		auto* pController = SDK::Interfaces::GameEntitySystem()->GetBaseEntity<CCSPlayerController>( i );
-		if ( !pController )
+		auto* pCtrl = SDK::Interfaces::GameEntitySystem()->GetBaseEntity<CCSPlayerController>( i );
+		if ( !pCtrl )
 			continue;
 
-		auto* pPawn = SDK::Interfaces::GameEntitySystem()->GetBaseEntity<C_CSPlayerPawn>( pController->m_hPawn().GetEntryIndex() );
-		if ( !IsValidTarget( pController , pPawn ) )
+		auto* pPawn = SDK::Interfaces::GameEntitySystem()->GetBaseEntity<C_CSPlayerPawn>( pCtrl->m_hPawn().GetEntryIndex() );
+		if ( !IsValidTarget( pCtrl , pPawn , Settings::Aimbot::OnlyVisible ) )
 			continue;
 
 		const auto vBone = GetCL_Bones()->GetBonePositionByName( pPawn , Settings::Aimbot::BoneTarget );
 		if ( vBone.IsZero() )
 			continue;
 
-		const auto vAimAngle = Math::CalcAngle( vLocalEye , vBone );
-		const auto flFov = vLocalAngles.Distance( vAimAngle );
-
+		const auto flFov = vLocalAngles.Distance( Math::CalcAngle( vLocalEye , vBone ) );
 		if ( flFov < flBestFov )
 		{
 			flBestFov = flFov;
-			pBestTarget = pPawn;
+			pBest     = pPawn;
 		}
 	}
 
-	return pBestTarget;
+	return pBest;
 }
 
-auto CAimbot::OnCreateMove( CCSGOInput* pInput , CUserCmd* pUserCmd ) -> void
+auto CAimbot::RunLegit( CCSGOInput* pInput , CUserCmd* pUserCmd ) -> void
 {
 	if ( !Settings::Aimbot::Active )
-		return;
-
-	if ( !SDK::Interfaces::EngineToClient()->IsInGame() )
-		return;
-
-	auto* pLocalPawn = GetCL_Players()->GetLocalPlayerPawn();
-	if ( !pLocalPawn )
 		return;
 
 	const auto iKey = Settings::Aimbot::Key;
 	if ( iKey != 0 && !( GetAsyncKeyState( iKey ) & 0x8000 ) )
 		return;
 
-	auto* pTarget = GetBestTarget();
+	auto* pLocalPawn = GetCL_Players()->GetLocalPlayerPawn();
+	if ( !pLocalPawn )
+		return;
+
+	auto* pTarget = GetBestLegitTarget();
 	if ( !pTarget )
 		return;
 
 	const auto vLocalEye = GetCL_Players()->GetLocalEyeOrigin();
-	const auto vBone = GetCL_Bones()->GetBonePositionByName( pTarget , Settings::Aimbot::BoneTarget );
+	const auto vBone     = GetCL_Bones()->GetBonePositionByName( pTarget , Settings::Aimbot::BoneTarget );
 	if ( vBone.IsZero() )
 		return;
 
 	auto vAimAngle = Math::CalcAngle( vLocalEye , vBone );
 
-	// recoil compensation
-	if ( Settings::Aimbot::RCS && pLocalPawn->m_iShotsFired() > 1 )
-	{
-		const auto& aimPunchCache = pLocalPawn->m_aimPunchCache();
-		if ( aimPunchCache.Count() > 0 )
-		{
-			const auto& punch = aimPunchCache[ aimPunchCache.Count() - 1 ];
-			vAimAngle.m_x -= punch.m_x * 2.0f;
-			vAimAngle.m_y -= punch.m_y * 2.0f;
-		}
-	}
+	if ( Settings::Aimbot::RCS )
+		ApplyRCS( vAimAngle , pLocalPawn );
 
 	Math::ClampAngles( vAimAngle );
 
+	// smooth — plus Smoothing est bas, plus c'est snap
 	const auto vCurrentAngles = pLocalPawn->m_angEyeAngles();
-	QAngle vSmoothAngles{};
-	Math::SmoothAngles( vCurrentAngles , vAimAngle , vSmoothAngles , Settings::Aimbot::Smoothing );
-	Math::ClampAngles( vSmoothAngles );
+	QAngle vOut{};
+	Math::SmoothAngles( vCurrentAngles , vAimAngle , vOut , Settings::Aimbot::Smoothing );
+	Math::ClampAngles( vOut );
 
-	GetCL_Bypass()->SetViewAngles( &vSmoothAngles , pInput , pUserCmd );
+	GetCL_Bypass()->SetViewAngles( &vOut , pInput , pUserCmd );
+}
+
+// ─────────────────────────── RAGE ───────────────────────────
+
+// Essaie les bones dans Settings::Aimbot::RageBones, retourne le premier non-zero
+auto CAimbot::GetBestRageBone( C_CSPlayerPawn* pPawn , const Vector3& vLocalEye ) -> Vector3
+{
+	for ( int i = 0; Settings::Aimbot::RageBones[ i ] != nullptr; i++ )
+	{
+		const auto vBone = GetCL_Bones()->GetBonePositionByName( pPawn , Settings::Aimbot::RageBones[ i ] );
+		if ( !vBone.IsZero() )
+			return vBone;
+	}
+	return Vector3{};
+}
+
+auto CAimbot::GetBestRageTarget() -> C_CSPlayerPawn*
+{
+	auto* pLocalPawn = GetCL_Players()->GetLocalPlayerPawn();
+	if ( !pLocalPawn )
+		return nullptr;
+
+	const auto vLocalEye    = GetCL_Players()->GetLocalEyeOrigin();
+	const auto vLocalAngles = pLocalPawn->m_angEyeAngles();
+
+	C_CSPlayerPawn* pBest    = nullptr;
+	float           flBestFov = 360.f; // rage = pas de limite FOV
+
+	const auto iHighest = SDK::Interfaces::GameEntitySystem()->GetHighestEntityIndex();
+	for ( auto i = 1; i <= iHighest; i++ )
+	{
+		auto* pCtrl = SDK::Interfaces::GameEntitySystem()->GetBaseEntity<CCSPlayerController>( i );
+		if ( !pCtrl )
+			continue;
+
+		auto* pPawn = SDK::Interfaces::GameEntitySystem()->GetBaseEntity<C_CSPlayerPawn>( pCtrl->m_hPawn().GetEntryIndex() );
+		if ( !IsValidTarget( pCtrl , pPawn , Settings::Aimbot::RageOnlyVisible ) )
+			continue;
+
+		const auto vBone = GetBestRageBone( pPawn , vLocalEye );
+		if ( vBone.IsZero() )
+			continue;
+
+		const auto flFov = vLocalAngles.Distance( Math::CalcAngle( vLocalEye , vBone ) );
+		if ( flFov < flBestFov )
+		{
+			flBestFov = flFov;
+			pBest     = pPawn;
+		}
+	}
+
+	return pBest;
+}
+
+auto CAimbot::RunRage( CCSGOInput* pInput , CUserCmd* pUserCmd ) -> void
+{
+	if ( !Settings::Aimbot::RageActive )
+		return;
+
+	const auto iKey = Settings::Aimbot::RageKey;
+	if ( iKey != 0 && !( GetAsyncKeyState( iKey ) & 0x8000 ) )
+		return;
+
+	auto* pLocalPawn = GetCL_Players()->GetLocalPlayerPawn();
+	if ( !pLocalPawn )
+		return;
+
+	auto* pTarget = GetBestRageTarget();
+	if ( !pTarget )
+		return;
+
+	const auto vLocalEye = GetCL_Players()->GetLocalEyeOrigin();
+	const auto vBone     = GetBestRageBone( pTarget , vLocalEye );
+	if ( vBone.IsZero() )
+		return;
+
+	auto vAimAngle = Math::CalcAngle( vLocalEye , vBone );
+
+	if ( Settings::Aimbot::RageRCS )
+		ApplyRCS( vAimAngle , pLocalPawn );
+
+	Math::ClampAngles( vAimAngle );
+
+	// snap instantané, pas de smooth
+	GetCL_Bypass()->SetViewAngles( &vAimAngle , pInput , pUserCmd );
+
+	// autofire : tire dès que l'angle est écrit
+	if ( Settings::Aimbot::RageAutoFire )
+		GetCL_Bypass()->SetAttack( pUserCmd , true ); // SubTick = true pour rage
+}
+
+// ─────────────────────────── entry ───────────────────────────
+
+auto CAimbot::OnCreateMove( CCSGOInput* pInput , CUserCmd* pUserCmd ) -> void
+{
+	if ( !SDK::Interfaces::EngineToClient()->IsInGame() )
+		return;
+
+	// rage a priorité sur legit si les deux sont actifs
+	if ( Settings::Aimbot::RageActive )
+		RunRage( pInput , pUserCmd );
+	else
+		RunLegit( pInput , pUserCmd );
 }
 
 auto GetAimbot() -> CAimbot*
