@@ -86,6 +86,9 @@
   <ItemGroup>
     <ClCompile Include="Andromeda-CS2-Base\AndromedaClient\CAndromedaClient.cpp" />
     <ClCompile Include="Andromeda-CS2-Base\AndromedaClient\CAndromedaGUI.cpp" />
+    <ClCompile Include="Andromeda-CS2-Base\AndromedaClient\Features\CAimbot\CAimbot.cpp" />
+    <ClCompile Include="Andromeda-CS2-Base\AndromedaClient\Features\CTriggerbot\CTriggerbot.cpp" />
+    <ClCompile Include="Andromeda-CS2-Base\AndromedaClient\Features\CBhop\CBhop.cpp" />
     <ClCompile Include="Andromeda-CS2-Base\AndromedaClient\Features\CInventoryChanger\CInventoryChanger.cpp" />
     <ClCompile Include="Andromeda-CS2-Base\AndromedaClient\Features\CInventoryChanger\CInventoryItemsManager.cpp" />
     <ClCompile Include="Andromeda-CS2-Base\AndromedaClient\Features\CVisual\CVisual.cpp" />
@@ -229,6 +232,9 @@
   <ItemGroup>
     <ClInclude Include="Andromeda-CS2-Base\AndromedaClient\CAndromedaClient.hpp" />
     <ClInclude Include="Andromeda-CS2-Base\AndromedaClient\CAndromedaGUI.hpp" />
+    <ClInclude Include="Andromeda-CS2-Base\AndromedaClient\Features\CAimbot\CAimbot.hpp" />
+    <ClInclude Include="Andromeda-CS2-Base\AndromedaClient\Features\CTriggerbot\CTriggerbot.hpp" />
+    <ClInclude Include="Andromeda-CS2-Base\AndromedaClient\Features\CBhop\CBhop.hpp" />
     <ClInclude Include="Andromeda-CS2-Base\AndromedaClient\Features\CInventoryChanger\CInventoryChanger.hpp" />
     <ClInclude Include="Andromeda-CS2-Base\AndromedaClient\Features\CInventoryChanger\CInventoryItemsManager.hpp" />
     <ClInclude Include="Andromeda-CS2-Base\AndromedaClient\Features\CVisual\CVisual.hpp" />

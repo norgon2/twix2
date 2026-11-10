@@ -10,6 +10,9 @@
 #include <AndromedaClient/Render/CRenderStackSystem.hpp>
 #include <AndromedaClient/Features/CVisual/CVisual.hpp>
 #include <AndromedaClient/Features/CInventoryChanger/CInventoryChanger.hpp>
+#include <AndromedaClient/Features/CAimbot/CAimbot.hpp>
+#include <AndromedaClient/Features/CTriggerbot/CTriggerbot.hpp>
+#include <AndromedaClient/Features/CBhop/CBhop.hpp>
 
 #include <GameClient/CEntityCache/CEntityCache.hpp>
 
@@ -62,6 +65,9 @@ auto CAndromedaClient::OnClientOutput() -> void
 auto CAndromedaClient::OnCreateMove( CCSGOInput* pInput , CUserCmd* pUserCmd ) -> void
 {
 	GetVisual()->OnCreateMove();
+	GetBhop()->OnCreateMove( pInput , pUserCmd );
+	GetAimbot()->OnCreateMove( pInput , pUserCmd );
+	GetTriggerbot()->OnCreateMove( pInput , pUserCmd );
 }
 
 auto GetAndromedaClient() -> CAndromedaClient*

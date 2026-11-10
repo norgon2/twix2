@@ -26,6 +26,26 @@ namespace Settings
 		inline auto MenuStyle = 0;
 		inline auto MenuDPI = 1.f;
 	}
+	namespace Aimbot
+	{
+		inline auto Active     = false;
+		inline auto OnlyVisible= true;
+		inline auto FOV        = 5.f;
+		inline auto Smoothing  = 10.f;
+		inline auto RCS        = true;
+		inline auto Key        = VK_LBUTTON; // 0 = always on, VK_LBUTTON = hold LMB
+		inline const char* BoneTarget = "head_0";
+	}
+	namespace Triggerbot
+	{
+		inline auto Active  = false;
+		inline auto Key     = 0; // 0 = always on when active
+		inline auto DelayMs = 50; // ms before first shot
+	}
+	namespace Bhop
+	{
+		inline auto Active = false;
+	}
 	namespace Colors
 	{
 		namespace Visual
